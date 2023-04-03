@@ -1,0 +1,8 @@
+[meta]
+name        = "Auto-Hide Records"
+author      = "Dr Damage"
+category    = "Overlay"
+version     = "1.0.0"
+
+[script]
+dependencies = [ "VehicleState" ]
