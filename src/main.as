@@ -1,6 +1,5 @@
 // constants
-const float SPEED_THRESHOLD = 1.0f;
-const int MOUSE_MOVE_HIDE_DELAY = 3500;
+const int MOUSE_MOVE_HIDE_DELAY = 5000;
 
 // HUDPicker constants
 const string HUDPICKER_ID = "HUDPicker";
@@ -9,11 +8,7 @@ const string HUDPICKER_RECORD_VISIBLE_VARNAME = "recordVisible";
 // global vars
 Meta::Plugin@ hudPickerPlugin = Meta::GetPluginFromID(HUDPICKER_ID);
 GameInfo@ gameInfo;
-float ticker = 0;
-
-// settings definition
-[Setting name="Is Enabled" category="General"]
-bool AutoHideRecords = true;
+uint64 mouseLastMovedTime;
 
 // renders the setting in the plugins dropdown menu
 void RenderMenu()
@@ -23,47 +18,16 @@ void RenderMenu()
     }
 }
 
-// HUD Picker helpers
-Meta::PluginSetting@ findHudPickerRecordsVisibleSetting(array<Meta::PluginSetting@> settings) {
-    for (int i = 0; i < int(settings.Length); i++) {
-        if (
-            settings[i].VarName == HUDPICKER_RECORD_VISIBLE_VARNAME
-            && settings[i].Type == Meta::PluginSettingType::Bool
-        ) {
-            return settings[i];
-        }
-    }
-    return null;
-}
-bool IsHudPickerRecordsHidden() {
-    if (
-        hudPickerPlugin !is null
-        && hudPickerPlugin.Enabled
-    ) {
-        auto settings = hudPickerPlugin.GetSettings();
-        auto setting = findHudPickerRecordsVisibleSetting(settings);
-        if (setting !is null) {
-            bool settingValue = setting.ReadBool();
-            return !settingValue;
-        }
-    }
-    return false;
-}
-
-void UpdateTicker(float dt) {
-    ticker -= dt;
-    if (ticker < 0) {
-        ticker = 0;
-    }
-}
-
 bool ShouldRunPlugin() {
-    return (
+    return ((
         AutoHideRecords // plugin has to be enabled
         && gameInfo.IsPlaying() // should be on a map
         && !IsHudPickerRecordsHidden() // don't do anything if the records element is hidden via HUD Picker
         && gameInfo.LoadProgress.State != NGameLoadProgress_SMgr::EState::Displayed // wait until playground finishes loading
-    );
+    ) || (
+        // handle case when element hidden and plugin gets turned off
+        !recordHud.GetVisible() && !AutoHideRecords
+    ));
 }
 
 void OnMouseMove(int x, int y) {
@@ -71,7 +35,7 @@ void OnMouseMove(int x, int y) {
     if (!ShouldRunPlugin()) {
         return;
     }
-    ticker = MOUSE_MOVE_HIDE_DELAY;
+    mouseLastMovedTime = Time::Now;
 #endif
 }
 
@@ -101,23 +65,19 @@ void Update(float dt) {
     float speed = 0;
 
     if (vehicleState !is null) {
-        speed = vehicleState.FrontSpeed;
+        speed = Math::Abs(Math::Round(vehicleState.FrontSpeed * 3.6f));
     }
 
-    
     bool shouldShowHud = (
-        ticker > 0 // if mouse was moved
+        (Time::Now - mouseLastMovedTime) < MOUSE_MOVE_HIDE_DELAY // if mouse was moved recently
+        || (!recordHud.GetVisible() && !AutoHideRecords) // plugin gets turned off
         || (
             gameTerminal !is null
             && gameTerminal.UISequence_Current != CGamePlaygroundUIConfig::EUISequence::Playing // if the current game state isn't Playing
-        ) || speed < SPEED_THRESHOLD // if the speed is less than the threshold set
+        ) || speed < SpeedThreshold // if the speed is less than the threshold set
     );
     
     recordHud.SetVisible(shouldShowHud);
     recordHud.UpdateVisibilty(uiLayer);
-
-    if (ticker > 0) {
-        UpdateTicker(dt);
-    }
 #endif
 }
