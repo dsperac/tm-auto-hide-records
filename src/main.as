@@ -23,7 +23,7 @@ bool ShouldRunPlugin() {
         AutoHideRecords // plugin has to be enabled
         && gameInfo.IsPlaying() // should be on a map
         && !IsHudPickerRecordsHidden() // don't do anything if the records element is hidden via HUD Picker
-        && gameInfo.LoadProgress.State != NGameLoadProgress_SMgr::EState::Displayed // wait until playground finishes loading
+        && gameInfo.LoadProgress.State != NGameLoadProgress::EState::Displayed // wait until playground finishes loading
     ) || (
         // handle case when element hidden and plugin gets turned off
         !recordHud.GetVisible() && !AutoHideRecords
